@@ -32,7 +32,7 @@ function Governance({ token, userInfo }) {
   // 제안이 통과되기 위한 정족수(%)
   const QUORUM = 50;
   // 제안이 통과되기 위한 최소 참여자 수
-  const minParticipants = 10;
+  const minParticipants = 4;
 
   useEffect(() => {
     if (userInfo.account_type !== "worker") {
@@ -47,9 +47,6 @@ function Governance({ token, userInfo }) {
     getProposals();
     getStandBy();
   }, []);
-
-  // 현재 진행중인 Vote를 web3를 이용해 실시간으로 읽어옴
-  const getVotings = () => {};
 
   // 데몬에서 종료된 투표 데이터를 읽어서 DB에 적재하면,
   // db에서 종료된 투표 데이터를 읽어오는 로직
@@ -99,7 +96,6 @@ function Governance({ token, userInfo }) {
     );
     const StandByProposal = res.data.data;
     setStandBy(StandByProposal);
-    console.log(res.data.data);
   };
 
   // DB에서 현재 up/down 진행중인 제안을 읽어옴
@@ -123,23 +119,21 @@ function Governance({ token, userInfo }) {
       if (proposal.createdAt + EXPIRED_PROPOSAL_TIME >= Date.now()) {
         await axios.patch(
           "http://localhost:4000/proposals/expiredProposal",
-          proposal.proposal_id,
+          proposal,
           { headers: { authorization: token } }
         );
+        navigate("/ReRendering");
       } else if (checkMinParticipants && checkQuorum) {
         await axios.patch(
           "http://localhost:4000/proposals/successfulProposal",
-          proposal.proposal_id,
+          proposal,
           { headers: { authorization: token } }
         );
+        navigate("/ReRendering");
       } else {
         filteredProposal.push(proposal);
       }
     }
-    console.log(
-      "최소참여자와 정족수 조건을 만족하지 않았지만, 기간이 만료되지 않은 제안",
-      filteredProposal
-    );
     setProposals(filteredProposal);
   };
 
@@ -149,14 +143,6 @@ function Governance({ token, userInfo }) {
       { headers: { authorization: token } }
     );
     setTryCount(res.data.data.length);
-  };
-
-  // propose 생성. 서버에서 생성한다.
-  const runPropose = async () => {
-    const res = await axios.get("http://localhost:4000/proposals/propose", {
-      headers: { authorization: token },
-    });
-    console.log("블록체인네트워크 응답 데이터: ", res.data.data);
   };
 
   return (
@@ -217,7 +203,7 @@ function Governance({ token, userInfo }) {
                 <Button
                   variant="contained"
                   size="small"
-                  onClick={() => navigate("/contactsupportteam")}
+                  onClick={() => navigate("/contactsupportteam", {state: {token: token, userInfo: userInfo}} )}
                 >
                   Contact Support Team
                 </Button>
@@ -226,19 +212,6 @@ function Governance({ token, userInfo }) {
                   Contact Support Team
                 </Button>
               )}
-            </Grid>
-
-            {/*//
-            //
-            //            web3 test
-              // */}
-            {/* 유지 보수를 담당하는 개발팀 전용 메뉴. 통과된 제안을 트랜잭션으로 만들고 컨트랙트를 실행하여 투표로 진입하게 한다 */}
-            <Grid item xs={2}>
-              {userInfo.worker_id === "worker01@gig.com" ? (
-                <Button variant="contained" size="small" onClick={runPropose}>
-                  Run Propose
-                </Button>
-              ) : null}
             </Grid>
           </Grid>
         </li>
